@@ -1,79 +1,48 @@
 package com.trash.model;
 
 
+
+import java.sql.Date;
+
 public class HistoryModel {
     private int id;
-    private int wasteId;          // ID sampah yang diminta untuk dijemput
-    private String status;        // Status permintaan (misalnya: "Pending", "Completed")
-    private String requestDate;   // Tanggal permintaan dibuat
-    private String pickupDate;    // Tanggal penjemputan dilakukan (jika sudah selesai)
-    private double weight;        // Berat sampah yang dijemput
-    private String address;       // Alamat penjemputan
+    private String wasteCategory;
+    private String description;
+    private double weight;
+    private Date requestDate;
+    private String address;
 
-
-    public HistoryModel(int wasteId, String status, String requestDate, String pickupDate) {
-        this.wasteId = wasteId;
-        this.status = status;
-        this.requestDate = requestDate;
-        this.pickupDate = pickupDate;
+    public HistoryModel(int id, String wasteCategory, String description, double weight, Date requestDate, String address) {
+        this.id = id;
+        this.wasteCategory = wasteCategory;
+        this.description = description;
         this.weight = weight;
+        this.requestDate = requestDate;
         this.address = address;
     }
 
-    // Getters and Setters
+    // Getters
     public int getId() {
         return id;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public String getWasteCategory() {
+        return wasteCategory;
     }
 
-    public int getWasteId() {
-        return wasteId;
-    }
-
-    public void setWasteId(int wasteId) {
-        this.wasteId = wasteId;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getRequestDate() {
-        return requestDate;
-    }
-
-    public void setRequestDate(String requestDate) {
-        this.requestDate = requestDate;
-    }
-
-    public String getPickupDate() {
-        return pickupDate;
-    }
-
-    public void setPickupDate(String pickupDate) {
-        this.pickupDate = pickupDate;
+    public String getDescription() {
+        return description;
     }
 
     public double getWeight() {
         return weight;
     }
 
-    public void setWeight(double weight) {
-        this.weight = weight;
+    public Date getRequestDate() {
+        return requestDate;
     }
 
     public String getAddress() {
         return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
     }
 }

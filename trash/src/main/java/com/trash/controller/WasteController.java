@@ -30,21 +30,39 @@ public class WasteController {
         try (Connection conn = DatabaseConnector.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
-            stmt.setInt(1, waste.getCategoryId());
-            stmt.setString(2, waste.getDescription());
+            // Pastikan waste.getCategoryId() dan waste.getDescription() tidak null
+            if (waste.getCategoryId() <= 0 || waste.getDescription() == null || waste.getDescription().isEmpty()) {
+                System.out.println("Invalid input: Category ID or Description is invalid.");
+                return false;
+            }
 
+            stmt.setInt(1, waste.getCategoryId());  // Menetapkan ID kategori
+            stmt.setString(2, waste.getDescription());  // Menetapkan deskripsi
+
+            // Debugging log
+            System.out.println("Executing query: " + query);
+            System.out.println("Category ID: " + waste.getCategoryId());
+            System.out.println("Description: " + waste.getDescription());
+
+
+            // Eksekusi query
             int rowsInserted = stmt.executeUpdate();
+            System.out.println("Rows inserted: " + rowsInserted); // Log jumlah baris yang terinsert
             return rowsInserted > 0;
         } catch (SQLException e) {
+            // Menangani error dan menampilkan lebih banyak informasi untuk debugging
             e.printStackTrace();
             return false;
         }
     }
 
+
+
     // Mengambil semua data waste
     public List<WasteModel> getAllWaste() {
         List<WasteModel> wasteList = new ArrayList<>();
         String query = "SELECT w.id, c.name AS category, w.description FROM waste w JOIN category c ON w.category_id = c.id";
+
         try (Connection conn = DatabaseConnector.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
@@ -53,11 +71,14 @@ public class WasteController {
                 int id = rs.getInt("id");
                 String category = rs.getString("category");
                 String description = rs.getString("description");
+
+                // Menambahkan data waste yang sudah lengkap ke dalam list
                 wasteList.add(new WasteModel(id, category, description));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
         return wasteList;
     }
 
@@ -186,61 +207,72 @@ public class WasteController {
         String query = "SELECT id FROM category WHERE name = ?";
         try (Connection conn = DatabaseConnector.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
+
             stmt.setString(1, categoryName);
             ResultSet rs = stmt.executeQuery();
+
             if (rs.next()) {
-                return rs.getInt("id");
+                int categoryId = rs.getInt("id");
+                System.out.println("Category found with ID: " + categoryId);  // Debugging log
+                return categoryId;
+            } else {
+                System.out.println("Category not found: " + categoryName);  // Debugging log
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return -1; // Kategori tidak ditemukan
+        return -1;  // Kategori tidak ditemukan
+    }
+
+    public boolean isCategoryIdValid(int categoryId) {
+        String query = "SELECT COUNT(*) FROM waste WHERE category_id = ?";  // Cek berdasarkan category_id
+        try (Connection conn = DatabaseConnector.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, categoryId);  // Gunakan category_id di waste untuk validasi
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0;  // Jika lebih dari 0 berarti ID kategori valid di tabel waste
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;  // Kategori tidak ditemukan dalam waste
     }
 
 
-    // Request pickup dengan berat dan alamat
+
     public boolean addRequestPickup(RequestPickupModel request) {
-        String query = "INSERT INTO requestpickup (waste_id, pickup_date, status, weight, address) VALUES (?, ?, ?, ?, ?)";
+        String checkWasteQuery = "SELECT COUNT(*) FROM waste WHERE id = ?";  // Cek apakah waste_id valid
         try (Connection conn = DatabaseConnector.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setInt(1, request.getWasteId());
-            stmt.setDate(2, new java.sql.Date(request.getPickupDate().getTime()));
-            stmt.setString(3, request.getStatus());
-            stmt.setBigDecimal(4, BigDecimal.valueOf(request.getWeight()));
-            stmt.setString(5, request.getAddress());
-
-            int rowsInserted = stmt.executeUpdate();
-            return rowsInserted > 0;
+             PreparedStatement checkStmt = conn.prepareStatement(checkWasteQuery)) {
+            checkStmt.setInt(1, request.getCategoryId());
+            ResultSet rs = checkStmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                // waste_id valid, lanjutkan dengan insert
+                String insertQuery = "INSERT INTO requestpickup (waste_id, description, weight, request_date, address) VALUES (?, ?, ?, ?, ?)";
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
+                    insertStmt.setInt(1, request.getCategoryId());
+                    insertStmt.setString(2, request.getDescription());
+                    insertStmt.setDouble(3, request.getWeight());
+                    insertStmt.setDate(4, request.getRequestDate());  // Pastikan menggunakan java.sql.Date
+                    insertStmt.setString(5, request.getAddress());
+                    int rowsInserted = insertStmt.executeUpdate();
+                    return rowsInserted > 0;
+                }
+            } else {
+                // Jika waste_id tidak ditemukan di waste
+                System.out.println("Invalid waste_id: " + request.getCategoryId());
+                return false;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // Fungsi untuk mendapatkan riwayat request pickup
-    public List<RequestPickupModel> getRequestHistory() {
-        List<RequestPickupModel> pickupList = new ArrayList<>();
-        String query = "SELECT rp.id, w.description AS waste_description, rp.pickup_date, rp.status, rp.weight, rp.address " +
-                "FROM requestpickup rp JOIN waste w ON rp.waste_id = w.id";
-        try (Connection conn = DatabaseConnector.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String wasteDescription = rs.getString("waste_description");
-                Date pickupDate = rs.getDate("pickup_date");
-                String status = rs.getString("status");
-                double weight = rs.getDouble("weight");
-                String address = rs.getString("address");
 
-                pickupList.add(new RequestPickupModel(id, wasteDescription, pickupDate, status, weight, address));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return pickupList;
-    }
+
+
 
 }

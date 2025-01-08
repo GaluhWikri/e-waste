@@ -1,84 +1,40 @@
 package com.trash.model;
 
-import java.util.Date;
-
+import java.sql.Date;
 
 public class RequestPickupModel {
-    private int id;
-    private int wasteId;  // Menyimpan ID sampah
-    private String wasteDescription;
-    private Date pickupDate;
-    private String status;
-    private double weight;  // Berat sampah
-    private String address; // Alamat penjemputan
+    private int categoryId;
+    private String description;
+    private double weight;
+    private Date requestDate;  // Ubah menjadi java.sql.Date
+    private String address;
 
-    // Constructor yang sudah diperbarui
-    public RequestPickupModel(int id, String wasteDescription, Date pickupDate, String status, double weight, String address) {
-        this.id = id;
-        this.wasteId = wasteId;
-        this.wasteDescription = wasteDescription;
-        this.pickupDate = pickupDate;
-        this.status = status;
+    public RequestPickupModel(int categoryId, String description, double weight, Date requestDate, String address) {
+        this.categoryId = categoryId;
+        this.description = description;
         this.weight = weight;
+        this.requestDate = requestDate;  // Ubah menjadi Date
         this.address = address;
     }
 
-    // Getters dan Setters
-    public int getId() {
-        return id;
+    // Getter dan Setter
+    public int getCategoryId() {
+        return categoryId;
     }
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public int getWasteId() {
-        return wasteId;
-    }
-
-    public void setWasteId(int wasteId) {
-        this.wasteId = wasteId;
-    }
-
-    public String getWasteDescription() {
-        return wasteDescription;
-    }
-
-    public void setWasteDescription(String wasteDescription) {
-        this.wasteDescription = wasteDescription;
-    }
-
-    public Date getPickupDate() {
-        return pickupDate;
-    }
-
-    public void setPickupDate(Date pickupDate) {
-        this.pickupDate = pickupDate;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
+    public String getDescription() {
+        return description;
     }
 
     public double getWeight() {
         return weight;
     }
 
-    public void setWeight(double weight) {
-        this.weight = weight;
+    public Date getRequestDate() {
+        return requestDate;  // Kembalikan sebagai java.sql.Date
     }
 
     public String getAddress() {
         return address;
     }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
 }
-
-

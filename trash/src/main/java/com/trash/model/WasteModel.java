@@ -1,15 +1,23 @@
 package com.trash.model;
 
+
+
 public class WasteModel {
     private int id;
     private int categoryId;
     private String category;
     private String description;
 
+    // Constructor
     public WasteModel(int id, String category, String description) {
         this.id = id;
         this.category = category;
         this.description = description;
+    }
+
+    public WasteModel(int categoryId, String description) {
+        this.categoryId = categoryId;  // Inisialisasi categoryId
+        this.description = description; // Inisialisasi description
     }
 
     // Getters and Setters
@@ -45,3 +53,4 @@ public class WasteModel {
         this.description = description;
     }
 }
+

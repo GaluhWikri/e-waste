@@ -3,11 +3,16 @@ package com.trash.view;
 import com.trash.controller.HistoryController;
 import com.trash.model.HistoryModel;
 import com.trash.controller.WasteController;
+import com.trash.model.RequestPickupModel;
 import com.trash.model.WasteModel;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class MainView extends JFrame {
@@ -177,8 +182,8 @@ public class MainView extends JFrame {
         JButton btnSave = new JButton("Save");
 
         btnSave.addActionListener(e -> {
-            String categoryName = txtCategory.getText();
-            String description = txtDescription.getText();
+            String categoryName = txtCategory.getText().trim();  // Menghilangkan spasi ekstra
+            String description = txtDescription.getText().trim();  // Menghilangkan spasi ekstra
 
             if (categoryName.isEmpty() || description.isEmpty()) {
                 JOptionPane.showMessageDialog(dialog, "All fields are required!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -191,7 +196,10 @@ public class MainView extends JFrame {
                     return;
                 }
 
-                WasteModel waste = new WasteModel(categoryId, description, description);
+                WasteModel waste = new WasteModel(categoryId, description);
+
+
+
                 if (controller.addWaste(waste)) {
                     JOptionPane.showMessageDialog(dialog, "Waste added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                     dialog.dispose();
@@ -200,6 +208,8 @@ public class MainView extends JFrame {
                 }
             }
         });
+
+
 
         dialog.add(lblCategory);
         dialog.add(txtCategory);
@@ -212,6 +222,7 @@ public class MainView extends JFrame {
         dialog.setVisible(true);
     }
 
+
     private void openViewWasteDialog() {
         JDialog dialog = new JDialog(this, "View Waste", true);
         dialog.setSize(600, 400);
@@ -222,6 +233,8 @@ public class MainView extends JFrame {
 
         WasteController controller = new WasteController();
         List<WasteModel> wasteList = controller.getAllWaste();
+
+        // Menambahkan data ke tabel dengan kategori dan deskripsi yang benar
         for (WasteModel waste : wasteList) {
             Object[] row = {waste.getId(), waste.getCategory(), waste.getDescription()};
             tableModel.addRow(row);
@@ -293,52 +306,107 @@ public class MainView extends JFrame {
 
     private void openRequestPickupDialog() {
         JDialog dialog = new JDialog(this, "Request Pickup", true);
-        dialog.setSize(400, 300);
-        dialog.setLayout(new GridLayout(6, 2)); // Perubahan pada jumlah baris
+        dialog.setSize(400, 400);
+        dialog.setLayout(new GridLayout(7, 2));
 
-        JLabel lblWasteId = new JLabel("Waste ID:");
-        JTextField txtWasteId = new JTextField();
+        WasteController wasteController = new WasteController();
+        List<String> categories = wasteController.getUniqueCategories();
+        JComboBox<String> cmbWasteCategory = new JComboBox<>();
+        for (String category : categories) {
+            cmbWasteCategory.addItem(category);
+        }
+
+        // Komponen lainnya
+        JLabel lblWasteCategory = new JLabel("Waste Category:");
+        JLabel lblDescription = new JLabel("Waste Description:");
+        JTextArea txtDescription = new JTextArea();
+        txtDescription.setRows(3);
+        JScrollPane scrollDescription = new JScrollPane(txtDescription);
+
+        JLabel lblWeight = new JLabel("Weight:");
+        JTextField txtWeight = new JTextField();
         JLabel lblRequestDate = new JLabel("Request Date:");
         JTextField txtRequestDate = new JTextField();
-        JLabel lblWeight = new JLabel("Weight:");
-        JTextField txtWeight = new JTextField();  // Input untuk weight
         JLabel lblAddress = new JLabel("Address:");
-        JTextField txtAddress = new JTextField();  // Input untuk address
+        JTextField txtAddress = new JTextField();
         JButton btnRequest = new JButton("Request Pickup");
 
         btnRequest.addActionListener(e -> {
             try {
-                int wasteId = Integer.parseInt(txtWasteId.getText());
-                String requestDate = txtRequestDate.getText();
-                double weight = Double.parseDouble(txtWeight.getText());  // Ambil input weight
-                String address = txtAddress.getText();  // Ambil input address
+                String wasteCategory = cmbWasteCategory.getSelectedItem().toString();
+                int categoryId = wasteController.getCategoryIdByName(wasteCategory);
 
-                if (requestDate.isEmpty() || address.isEmpty()) {
-                    JOptionPane.showMessageDialog(dialog, "Fields cannot be empty!", "Error", JOptionPane.ERROR_MESSAGE);
+                // Validasi waste_id di waste
+                if (categoryId == -1) {
+                    JOptionPane.showMessageDialog(dialog, "Selected category is invalid!", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                HistoryController controller = new HistoryController();
-                if (controller.addHistory(wasteId, "Pending", requestDate, null, weight, address)) {
-                    JOptionPane.showMessageDialog(dialog, "Pickup request added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    dialog.dispose();
-                } else {
-                    JOptionPane.showMessageDialog(dialog, "Failed to request pickup.", "Error", JOptionPane.ERROR_MESSAGE);
+                // Validasi waste_id ada di tabel waste
+                if (!wasteController.isCategoryIdValid(categoryId)) {
+                    JOptionPane.showMessageDialog(dialog, "Waste ID not found in waste table!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "Please enter valid data!", "Error", JOptionPane.ERROR_MESSAGE);
+
+                String description = txtDescription.getText();
+                double weight = 0;
+                try {
+                    weight = Double.parseDouble(txtWeight.getText());
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(dialog, "Weight must be a valid number!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                String requestDate = txtRequestDate.getText();
+                String address = txtAddress.getText();
+
+                if (description.isEmpty() || address.isEmpty() || requestDate.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, "Fields cannot be empty!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (weight <= 0) {
+                    JOptionPane.showMessageDialog(dialog, "Weight must be greater than zero!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Format tanggal
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                try {
+                    LocalDate parsedDate = LocalDate.parse(requestDate, formatter);
+                    Date sqlDate = Date.valueOf(parsedDate);
+
+                    // Insert data ke requestpickup
+                    RequestPickupModel request = new RequestPickupModel(categoryId, description, weight, sqlDate, address);
+                    boolean success = wasteController.addRequestPickup(request);
+                    if (success) {
+                        JOptionPane.showMessageDialog(dialog, "Pickup request added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        dialog.dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(dialog, "Failed to request pickup.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (DateTimeParseException ex) {
+                    JOptionPane.showMessageDialog(dialog, "Invalid date format! Please use yyyy-MM-dd.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(dialog, "An unexpected error occurred.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
-        dialog.add(lblWasteId);
-        dialog.add(txtWasteId);
+
+
+        // Menambahkan komponen ke dialog
+        dialog.add(lblWasteCategory);
+        dialog.add(cmbWasteCategory);
+        dialog.add(lblDescription);
+        dialog.add(scrollDescription);
+        dialog.add(lblWeight);
+        dialog.add(txtWeight);
         dialog.add(lblRequestDate);
         dialog.add(txtRequestDate);
-        dialog.add(lblWeight);
-        dialog.add(txtWeight);  // Tambahkan input weight
         dialog.add(lblAddress);
-        dialog.add(txtAddress);  // Tambahkan input address
-        dialog.add(new JLabel());
+        dialog.add(txtAddress);
+        dialog.add(new JLabel());  // Kosongkan sel untuk pemisahan
         dialog.add(btnRequest);
 
         dialog.setLocationRelativeTo(this);
@@ -346,20 +414,27 @@ public class MainView extends JFrame {
     }
 
 
+
     private void openHistoryDialog() {
         JDialog dialog = new JDialog(this, "View History", true);
         dialog.setSize(600, 400);
 
-        String[] columnNames = {"ID", "Waste ID", "Status", "Request Date", "Pickup Date", "Weight", "Address"};
+        String[] columnNames = {"ID", "Waste Category", "Description", "Weight", "Request Date", "Address"};
         DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0);
         JTable table = new JTable(tableModel);
 
         HistoryController controller = new HistoryController();
         List<HistoryModel> historyList = controller.getHistory();
+
         for (HistoryModel history : historyList) {
-            Object[] row = {history.getId(), history.getWasteId(), history.getStatus(),
-                    history.getRequestDate(), history.getPickupDate(),
-                    history.getWeight(), history.getAddress()};  // Tambahkan weight dan address
+            Object[] row = {
+                    history.getId(),
+                    history.getWasteCategory(),
+                    history.getDescription(),
+                    history.getWeight(),
+                    history.getRequestDate(),
+                    history.getAddress()
+            };
             tableModel.addRow(row);
         }
 
@@ -369,6 +444,7 @@ public class MainView extends JFrame {
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
+
 
 
     private void openSummaryDialog() {
